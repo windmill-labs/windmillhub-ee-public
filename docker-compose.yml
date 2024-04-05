@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   db:
     image: postgres:16
@@ -10,12 +8,12 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: windmillhub
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
   hub:
-    image: ghcr.io/windmill-labs/windmillhub-ee:main
+    image: ghcr.io/windmill-labs/windmillhub-ee-public:main
     privileged: true
     restart: unless-stopped
     expose:
