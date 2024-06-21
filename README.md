@@ -19,5 +19,5 @@ Superadmins of the Windmill instance can approve resource types, scripts, flows,
 
 ## Import scripts from the official Windmill hub
 
-You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts from the official Windmill hub and push them to your private hub.
+You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts locally from the official Windmill hub and push them to your private hub.
 
