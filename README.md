@@ -15,5 +15,9 @@ For instance, if the Windmill instance is available on `windmill.example.com`, t
 
 As described above, logging in on the hub will redirect you to the Windmill instance you specified in the `.env` file.
 Superadmins of the Windmill instance can approve resource types, scripts, flows, and apps on the Hub.
-Only approved content will be available to users on the Windmill instance.
+**Only approved content will be available to users on the Windmill instance.**
+
+## Import scripts from the official Windmill hub
+
+You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts from the official Windmill hub and push them to your private hub.
 
