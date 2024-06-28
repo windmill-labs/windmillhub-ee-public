@@ -2,9 +2,14 @@ name: Build and push docker image
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
 jobs:
   build:
-    runs-on: ubicloud-standard-8
+    runs-on: ubicloud-standard
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,6 +24,8 @@ jobs:
           images: |
             ghcr.io/${{ github.repository }}
 
+      - uses: depot/setup-action@v1
+
       - name: Login to GHCR
         uses: docker/login-action@v2
         with:
@@ -27,7 +34,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push privately
-        uses: docker/build-push-action@v3
+        uses: depot/build-push-action@v1
         with:
           context: .
           push: true
