@@ -1,4 +1,4 @@
-# Private Windmill Hub 
+# Private Windmill Hub
 
 ## Setup
 
@@ -8,8 +8,16 @@
 
 You can enable HTTPS handling by Caddy by adding the 443 port to the Caddy service in the docker-compose.yml file.
 
+### Required configuration on the Windmill instance for authentication
+
 Authentication on the Hub is done through the Windmill instance. Both the Hub and the Windmill instances need to be running on the same domain for the authentication to work.
-For instance, if the Windmill instance is available on `windmill.example.com`, the Hub should be accessible on a similar subdomain like `hub.example.com`. You will also need to set `COOKIE_DOMAIN` in the .env file of the Windmill instance (server container) to the root domain (e.g. `example.com`).
+For instance, if the Windmill instance is available on `windmill.example.com`, the Hub should be accessible on a similar subdomain like `hub.example.com`. You will also need to set `COOKIE_DOMAIN` in the .env file of the **Windmill instance (server container)** to the root domain (e.g. `example.com`).
+
+### Debugging
+
+- You can enable debug logs by setting `DEBUG_LOG=true` in the environment section of the hub service in the docker-compose.yml file.
+- The hub exposes a debug page at `/debug` that displays the configuration and status of the hub.
+- If you need more support, please share with us the logs and and the debug page output.
 
 ## Usage
 
@@ -20,4 +28,3 @@ Superadmins of the Windmill instance can approve resource types, scripts, flows,
 ## Import scripts from the official Windmill hub
 
 You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts locally from the official Windmill hub and push them to your private hub.
-
