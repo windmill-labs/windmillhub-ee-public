@@ -13,7 +13,7 @@ services:
       timeout: 5s
       retries: 5
   hub:
-    image: ghcr.io/windmill-labs/windmillhub-ee-public:main
+    image: ghcr.io/windmill-labs/windmillhub-ee-public:latest
     privileged: true
     restart: unless-stopped
     expose:
