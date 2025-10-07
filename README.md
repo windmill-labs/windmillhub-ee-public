@@ -5,6 +5,7 @@
 - Fill in the `.env` file with your desired database password, the url of your Windmill instance and your license key.
 - Run `docker-compose up -d` to start the hub and database.
 - Update the instance settings in the Windmill instance to point to the hub.
+- Optionally, you can restrict access to the hub by setting the `API_SECRET` environment variable in the `.env` file. Make sure to set it as well in the Windmill instance settings.
 
 You can enable HTTPS handling by Caddy by adding the 443 port to the Caddy service in the docker-compose.yml file.
 
