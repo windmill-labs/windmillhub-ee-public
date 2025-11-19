@@ -22,6 +22,7 @@ services:
       - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db/windmillhub?sslmode=disable
       - PUBLIC_PRIVATE_HUB=true
       - PUBLIC_APP_URL=${APP_URL}
+      # - PUBLIC_APP_ACCESSIBLE_URL=${APP_ACCESSIBLE_URL} # if you have a different url to access your windmill instance from the user's browser
       - LICENSE_KEY=${LICENSE_KEY}
       - API_SECRET=${API_SECRET}
 
