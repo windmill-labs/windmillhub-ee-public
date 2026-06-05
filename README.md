@@ -36,8 +36,10 @@ You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) 
 Instead of approving scripts only from the hub UI, you can review them as GitHub
 pull requests: **a script created on the hub opens a PR in a content repo, and
 merging the PR approves it on the hub.** Example workflows are in
-[`.github/workflows`](.github/workflows) — copy them into the git repo that holds
-your `hub/` content (the repo you `pull`/`push` with the hub cli).
+[`examples/github-workflows`](examples/github-workflows) — copy them into the
+`.github/workflows` of the git repo that holds your `hub/` content (the repo you
+`pull`/`push` with the hub cli). They are kept here as inert templates so they
+don't run in this deployment repo.
 
 ### How it flows
 
