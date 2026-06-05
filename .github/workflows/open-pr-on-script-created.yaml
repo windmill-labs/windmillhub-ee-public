@@ -1,0 +1,72 @@
+# EXAMPLE — PR-gated hub approval (event fast-path).
+#
+# When a script is created on the hub UI, the hub fires a `hub-script-created`
+# repository_dispatch (it must have GITHUB_DISPATCH_REPO=<owner>/<this-repo> and
+# GITHUB_DISPATCH_TOKEN set — see the hub's AGENTS.md). This workflow turns that
+# event into a review PR against this content repo. Merging the PR runs
+# push-to-hub.yaml, which approves the script on the hub.
+#
+# Reliability: this is the fast path. open-pending-prs.yaml is the backstop that
+# catches any dropped dispatch.
+#
+# Secrets / variables this expects:
+#   secrets.HUB_TOKEN    superadmin token of your Windmill instance / hub
+#   secrets.LICENSE_KEY  (official hub only) enterprise license key
+#   secrets.PR_TOKEN     a PAT/GitHub App token used to OPEN the PR. Needed so the
+#                        PR triggers test-push-to-hub.yaml — PRs opened with the
+#                        default GITHUB_TOKEN do not trigger other workflows.
+#   vars.HUB_URL         your hub URL (e.g. https://hub.example.com)
+name: Open review PR for a hub-created script
+
+on:
+  repository_dispatch:
+    types: [hub-script-created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+
+      # Write hub/<app>/scripts/.../script.{ext,json} for the created ask. The
+      # version id comes straight from the dispatch payload (no lookup needed).
+      # Passed via env (not inlined into the shell) to avoid command injection.
+      - name: Materialize the created script
+        env:
+          ASK_ID: ${{ github.event.client_payload.ask_id }}
+          VERSION_ID: ${{ github.event.client_payload.version_id }}
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: bunx @windmill-labs/hub-cli@latest materialize-ask --ask-id "$ASK_ID" --version-id "$VERSION_ID"
+
+      # Idempotent on the branch name (keyed by ask_id): a repeated dispatch
+      # updates the existing PR instead of opening a duplicate. If the ask was
+      # already approved (e.g. in-UI fast-track) materialize-ask writes nothing,
+      # so there's no diff and no PR is opened.
+      - name: Open / update the review PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PR_TOKEN }}
+          branch: hub-submission/script-${{ github.event.client_payload.ask_id }}
+          labels: hub-submission
+          commit-message: "feat(${{ github.event.client_payload.app }}): ${{ github.event.client_payload.summary }}"
+          title: "Hub submission — ${{ github.event.client_payload.summary }} (${{ github.event.client_payload.app }})"
+          body: |
+            A script was created on the hub and is awaiting review.
+
+            **Merging this PR approves it on the hub** (via `push-to-hub.yaml`).
+
+            | field | value |
+            |---|---|
+            | ask_id | `${{ github.event.client_payload.ask_id }}` |
+            | app | `${{ github.event.client_payload.app }}` |
+            | kind | `${{ github.event.client_payload.kind }}` |
+            | language | `${{ github.event.client_payload.language }}` |

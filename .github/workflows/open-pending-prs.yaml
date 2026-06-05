@@ -1,0 +1,78 @@
+# EXAMPLE — PR-gated hub approval (poll backstop).
+#
+# open-pr-on-script-created.yaml is the fast path; this is the safety net. On a
+# schedule it asks the hub for unapproved asks that aren't tracked locally yet
+# (list-pending) and opens one review PR per script — catching any dispatch the
+# hub dropped (GitHub outage, token expiry, etc.). Same branch naming as the
+# fast path (hub-submission/script-<ask_id>), so the two never double-open a PR.
+#
+# Requires a hub recent enough to expose `latest_version` on /searchData?all=true
+# (so a pending ask's content can be fetched without the dispatch payload).
+#
+# Secrets / variables: see open-pr-on-script-created.yaml.
+name: Open review PRs for pending hub scripts (backstop)
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      ask_ids: ${{ steps.list.outputs.ask_ids }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+      - id: list
+        env:
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        # Writes pending.json: [{ask_id, app, summary, kind, version_id}, ...].
+        # Emit just the ask_ids as a compact JSON array for the matrix below.
+        run: |
+          bunx @windmill-labs/hub-cli@latest list-pending
+          echo "ask_ids=$(jq -c '[.[].ask_id]' pending.json)" >> "$GITHUB_OUTPUT"
+
+  open-pr:
+    needs: discover
+    if: needs.discover.outputs.ask_ids != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ask_id: ${{ fromJSON(needs.discover.outputs.ask_ids) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+      # No --version-id here: materialize-ask resolves it from the hub's
+      # latest_version for this ask.
+      - name: Materialize the pending script
+        env:
+          ASK_ID: ${{ matrix.ask_id }}
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: bunx @windmill-labs/hub-cli@latest materialize-ask --ask-id "$ASK_ID"
+      - name: Open / update the review PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PR_TOKEN }}
+          branch: hub-submission/script-${{ matrix.ask_id }}
+          labels: hub-submission
+          commit-message: "feat: hub script #${{ matrix.ask_id }}"
+          title: "Hub submission — pending script #${{ matrix.ask_id }}"
+          body: |
+            Pending hub script `#${{ matrix.ask_id }}` (opened by the backstop poll).
+
+            **Merging this PR approves it on the hub** (via `push-to-hub.yaml`).

@@ -1,0 +1,72 @@
+# EXAMPLE — event-driven sync of in-UI approvals.
+#
+# Replaces a polling "update-from-hub" cron. When a maintainer approves a script
+# in the hub UI (the fast-track that bypasses the PR gate — the "keep both
+# approval paths" model), the hub fires a `hub-script-approved` dispatch. This
+# workflow pulls the now-approved content into this repo and commits it to main,
+# so the repo stays the source of truth.
+#
+# Note: the CLI push approves with ?no_dispatch=true, so the merge -> approve of
+# a reviewed PR does NOT bounce back here (the content is already on main). This
+# event therefore fires ONLY for UI fast-track approvals — so if a review PR was
+# already open for the same script, it's now redundant and we close it.
+#
+# Optional backstop: if you want to tolerate dropped dispatches, add a sparse
+# `schedule:` that runs the same `pull` step (e.g. hourly).
+name: Pull approved script from hub
+
+on:
+  repository_dispatch:
+    types: [hub-script-approved]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # Same group as push-to-hub.yaml so a pull can't race a curation push.
+  group: hub-sync
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+      - name: Pull approved content from hub
+        env:
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: |
+          bunx @windmill-labs/hub-cli@latest pull
+          bunx @windmill-labs/hub-cli@latest pull-resource-types
+      - name: Commit changes
+        run: |
+          git diff --quiet . && exit 0
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git commit -m "chore: pull approved script from hub"
+          for attempt in 1 2 3 4 5; do
+            git push && exit 0
+            echo "push rejected (attempt $attempt) — rebasing on origin/main and retrying"
+            git pull --rebase origin main
+          done
+          git push
+
+      # The content is now on main, so any review PR opened for this same script
+      # (it was approved in the UI instead of via the PR) is redundant — close it
+      # and delete its branch. Runs last, so the PR is only closed once the pull
+      # has landed. No-op if no such PR exists. Skipped on manual runs (no ask_id).
+      - name: Close the now-redundant review PR
+        if: github.event_name == 'repository_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.PR_TOKEN }}
+          BRANCH: hub-submission/script-${{ github.event.client_payload.ask_id }}
+        run: |
+          gh pr close "$BRANCH" --delete-branch \
+            --comment "Approved directly in the hub UI and pulled to main — closing this review PR." \
+            || echo "No open review PR for $BRANCH"
