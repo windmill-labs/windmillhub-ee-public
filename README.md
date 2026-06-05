@@ -56,8 +56,36 @@ push-to-hub.yaml ──► hub-cli push ──► script approved on the hub
 approve in hub UI ──► hub fires hub-script-approved ──► pull-on-script-approved.yaml ──► commit to main
 ```
 
-`open-pending-prs.yaml` is a scheduled backstop that opens PRs for any creation
-event the hub dropped, so the loop is resilient even if a dispatch is missed.
+### The workflows
+
+Copy these into your content repo's `.github/workflows/`:
+
+- **`open-pr-on-script-created.yaml`** — triggered by the hub's `hub-script-created`
+  dispatch. Runs `materialize-ask` to write the new script's files and opens (or
+  updates) a review PR on a `hub-submission/script-<ask_id>` branch. This is the
+  real-time path from "created in the UI" to "reviewable PR".
+- **`open-pending-prs.yaml`** — scheduled backstop (every 30 min). Runs
+  `list-pending` and opens a PR for any unapproved script the dispatch missed
+  (GitHub outage, expired token, etc.). Uses the same branch names, so it never
+  double-opens a PR the fast path already created.
+- **`test-push-to-hub.yaml`** — runs on every PR touching `hub/**` (including the
+  submission PRs). A dry-run `push` that comments on the PR what merging will do
+  on the hub. Pure preview — no hub changes.
+- **`push-to-hub.yaml`** — runs on push to `main` touching `hub/**`. Reconciles
+  the repo into the hub via `hub-cli push`, which **approves** whatever is in the
+  repo — so merging a submission PR approves that script. This closes the
+  create → PR → merge → approved loop. (Omits `--prune` by default; see the file's
+  header for why under the "keep both approval paths" model.)
+- **`pull-on-script-approved.yaml`** — triggered by the hub's `hub-script-approved`
+  dispatch (fires only on **UI** approvals — the CLI push approves with
+  `?no_dispatch=true`). Pulls the now-approved content into the repo and commits
+  to `main`, and closes the matching review PR if one was open. This is the
+  event-driven replacement for a polling "update-from-hub" cron.
+
+The two halves work together: `open-*` + `push-to-hub` cover the reviewed path
+(created → PR → merge → approved), while `pull-on-script-approved` covers the
+maintainer fast-track (approve in the UI → repo catches up). `test-push-to-hub`
+gives reviewers a preview on every PR.
 
 ### Configure the hub
 
