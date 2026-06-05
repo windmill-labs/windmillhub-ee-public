@@ -30,3 +30,84 @@ Superadmins of the Windmill instance can approve resource types, scripts, flows,
 ## Import scripts from the official Windmill hub
 
 You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts locally from the official Windmill hub and push them to your private hub.
+
+## PR-gated approval (GitHub)
+
+Instead of approving scripts only from the hub UI, you can review them as GitHub
+pull requests: **a script created on the hub opens a PR in a content repo, and
+merging the PR approves it on the hub.** Example workflows are in
+[`examples/github-workflows`](examples/github-workflows) — copy them into the
+`.github/workflows` of the git repo that holds your `hub/` content (the repo you
+`pull`/`push` with the hub cli). They are kept here as inert templates so they
+don't run in this deployment repo.
+
+### How it flows
+
+```
+create script in hub UI
+        │  hub fires repository_dispatch: hub-script-created
+        ▼
+open-pr-on-script-created.yaml ──► review PR (test-push-to-hub.yaml comments the impact)
+        │  reviewer merges
+        ▼
+push-to-hub.yaml ──► hub-cli push ──► script approved on the hub
+
+# maintainer fast-track (no PR):
+approve in hub UI ──► hub fires hub-script-approved ──► pull-on-script-approved.yaml ──► commit to main
+```
+
+### The workflows
+
+Copy these into your content repo's `.github/workflows/`:
+
+- **`open-pr-on-script-created.yaml`** — triggered by the hub's `hub-script-created`
+  dispatch. Runs `materialize-ask` to write the new script's files and opens (or
+  updates) a review PR on a `hub-submission/script-<ask_id>` branch. This is the
+  real-time path from "created in the UI" to "reviewable PR".
+- **`open-pending-prs.yaml`** — scheduled backstop (every 30 min). Runs
+  `list-pending` and opens a PR for any unapproved script the dispatch missed
+  (GitHub outage, expired token, etc.). Uses the same branch names, so it never
+  double-opens a PR the fast path already created.
+- **`test-push-to-hub.yaml`** — runs on every PR touching `hub/**` (including the
+  submission PRs). A dry-run `push` that comments on the PR what merging will do
+  on the hub. Pure preview — no hub changes.
+- **`push-to-hub.yaml`** — runs on push to `main` touching `hub/**`. Reconciles
+  the repo into the hub via `hub-cli push`, which **approves** whatever is in the
+  repo — so merging a submission PR approves that script. This closes the
+  create → PR → merge → approved loop. (Omits `--prune` by default; see the file's
+  header for why under the "keep both approval paths" model.)
+- **`pull-on-script-approved.yaml`** — triggered by the hub's `hub-script-approved`
+  dispatch (fires only on **UI** approvals — the CLI push approves with
+  `?no_dispatch=true`). Pulls the now-approved content into the repo and commits
+  to `main`, and closes the matching review PR if one was open. This is the
+  event-driven replacement for a polling "update-from-hub" cron.
+
+The two halves work together: `open-*` + `push-to-hub` cover the reviewed path
+(created → PR → merge → approved), while `pull-on-script-approved` covers the
+maintainer fast-track (approve in the UI → repo catches up). `test-push-to-hub`
+gives reviewers a preview on every PR.
+
+### Configure the hub
+
+Set these on the **hub** service (in `docker-compose.yml` / `.env`) so it
+dispatches events to your content repo (any hub can opt in — unset = disabled):
+
+- `GITHUB_DISPATCH_REPO` — `owner/repo` of your content repo
+- `GITHUB_DISPATCH_TOKEN` — token allowed to create dispatch events (fine-grained
+  PAT with **Contents: write**, or a GitHub App installation token)
+
+### Configure the content repo
+
+In the GitHub repo holding your `hub/` content, set:
+
+- `secrets.HUB_TOKEN` — a superadmin token of your Windmill instance
+- `secrets.LICENSE_KEY` — your enterprise license key (drop it for an unlicensed
+  private hub)
+- `secrets.PR_TOKEN` — a PAT/GitHub App token used to **open** the review PRs.
+  Required so those PRs trigger `test-push-to-hub.yaml` (PRs opened with the
+  default `GITHUB_TOKEN` don't trigger other workflows)
+- `vars.HUB_URL` — your hub URL (e.g. `https://hub.example.com`)
+
+Requires `@windmill-labs/hub-cli` recent enough to include the `list-pending` and
+`materialize-ask` commands, and a hub that exposes `latest_version` on
+`/searchData?all=true`.

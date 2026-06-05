@@ -1,0 +1,65 @@
+# EXAMPLE — push merged content to the hub (the "auto approve on merge" half).
+#
+# On every push to main that touches hub/**, reconcile the repo into the hub.
+# `push` creates/updates versions and APPROVES whatever is in the repo — so
+# merging a hub-submission PR (opened by open-pr-on-script-created.yaml) approves
+# that script on the hub. This is what closes the create -> PR -> merge ->
+# approved loop.
+#
+# Secrets / variables:
+#   secrets.HUB_TOKEN    superadmin token of your Windmill instance / hub
+#   secrets.LICENSE_KEY  (official hub only) enterprise license key
+#   vars.HUB_URL         your hub URL
+#
+# NOTE on --prune: the official catalog repo pushes with `--prune` to disapprove
+# hub scripts curated away locally. It is intentionally omitted here: with the
+# "keep both approval paths" model (maintainers may also approve in the UI), a
+# script approved in-UI but not yet pulled into the repo would be disapproved by
+# a prune. Add `--prune` only if this repo is the single source of truth.
+name: Push to hub on merge
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "hub/**"
+    branches:
+      - main
+
+jobs:
+  push:
+    concurrency:
+      # Push is authoritative: preempt a mid-run pull (same group).
+      group: hub-sync
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+      - name: Push scripts to hub (creates versions + approves repo content)
+        env:
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: bunx @windmill-labs/hub-cli@latest push --ci
+      - name: Push resource types to hub
+        env:
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: bunx @windmill-labs/hub-cli@latest push-resource-types --ci
+      - name: Commit any normalized state pushed back locally
+        run: |
+          git diff --quiet . && exit 0
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git commit -m "chore: push changes to hub"
+          for attempt in 1 2 3 4 5; do
+            git push && exit 0
+            echo "push rejected (attempt $attempt) — rebasing on origin/main and retrying"
+            git pull --rebase origin main
+          done
+          git push

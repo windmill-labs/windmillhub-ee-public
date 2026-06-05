@@ -1,0 +1,55 @@
+# EXAMPLE — dry-run + impact comment on PRs touching hub/**.
+#
+# Runs on every PR (including the hub-submission PRs opened by
+# open-pr-on-script-created.yaml / open-pending-prs.yaml) so a reviewer sees
+# exactly what merging will do on the hub before approving. Pure dry-run — no
+# hub changes.
+name: Test push to hub (dry run)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "hub/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.43
+      - name: Dry-run push (scripts)
+        env:
+          TOKEN: ${{ secrets.HUB_TOKEN }}
+          HUB_URL: ${{ vars.HUB_URL }}
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+        run: bunx @windmill-labs/hub-cli@latest push --ci --dry-run
+      - name: Comment summary on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (p, d) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return d; } };
+            const ps = read('push-summary.scripts.json', { newOrUpdated: 0, updatedAsks: 0, integrations: [] });
+            const marker = '<!-- hub-push-dry-run -->';
+            const body = `${marker}\n## 📦 Hub push — dry run\n\n` +
+              `Merging this PR will create/update **${ps.newOrUpdated}** script version(s) ` +
+              `and **${ps.updatedAsks}** ask metadata update(s)` +
+              `${ps.integrations.length ? ` — ${ps.integrations.map((i) => '`' + i + '`').join(', ')}` : ''}, ` +
+              `then approve them on the hub.`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
