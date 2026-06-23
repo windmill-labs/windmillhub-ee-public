@@ -1,10 +1,15 @@
-# EXAMPLE — PR-gated hub approval (poll backstop).
+# EXAMPLE — PR-gated hub approval (poll backstop). OPTIONAL.
 #
 # open-pr-on-script-created.yaml is the fast path; this is the safety net. On a
 # schedule it asks the hub for unapproved asks that aren't tracked locally yet
 # (list-pending) and opens one review PR per script — catching any dispatch the
 # hub dropped (GitHub outage, token expiry, etc.). Same branch naming as the
 # fast path (hub-submission/script-<ask_id>), so the two never double-open a PR.
+#
+# CAUTION: list-pending returns EVERY unapproved ask not already in the repo, so
+# this opens a PR for your entire unapproved backlog. Use it only on a curated hub
+# where "pending == awaiting approval" — NOT on a hub that intentionally leaves
+# submissions unapproved (e.g. a public-facing hub), where it would mass-open PRs.
 #
 # Requires a hub recent enough to expose `latest_version` on /searchData?all=true
 # (so a pending ask's content can be fetched without the dispatch payload).
@@ -67,7 +72,7 @@ jobs:
       - name: Open / update the review PR
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PR_TOKEN }}
+          token: ${{ secrets.PR_TOKEN || secrets.GITHUB_TOKEN }}
           branch: hub-submission/script-${{ matrix.ask_id }}
           labels: hub-submission
           commit-message: "feat: hub script #${{ matrix.ask_id }}"
