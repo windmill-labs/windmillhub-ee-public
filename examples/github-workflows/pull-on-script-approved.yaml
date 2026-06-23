@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write # close the redundant review PR (GITHUB_TOKEN path)
 
 concurrency:
   # Same group as push-to-hub.yaml so a pull can't race a curation push.
@@ -64,7 +65,7 @@ jobs:
       - name: Close the now-redundant review PR
         if: github.event_name == 'repository_dispatch'
         env:
-          GH_TOKEN: ${{ secrets.PR_TOKEN }}
+          GH_TOKEN: ${{ secrets.PR_TOKEN || secrets.GITHUB_TOKEN }}
           BRANCH: hub-submission/script-${{ github.event.client_payload.ask_id }}
         run: |
           gh pr close "$BRANCH" --delete-branch \

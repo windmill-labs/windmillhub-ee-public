@@ -67,7 +67,7 @@ jobs:
       - name: Open / update the review PR
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PR_TOKEN }}
+          token: ${{ secrets.PR_TOKEN || secrets.GITHUB_TOKEN }}
           branch: hub-submission/script-${{ matrix.ask_id }}
           labels: hub-submission
           commit-message: "feat: hub script #${{ matrix.ask_id }}"

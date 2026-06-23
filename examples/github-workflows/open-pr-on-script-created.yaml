@@ -9,13 +9,24 @@
 # Reliability: this is the fast path. open-pending-prs.yaml is the backstop that
 # catches any dropped dispatch.
 #
+# Why there's no dry-run preview by default: merging a hub-submission PR just
+# APPROVES the already-existing script on the hub. The script was created in the
+# UI, so its version already exists — the merge only flips approval; no new
+# version is pushed unless a reviewer EDITS the file in the PR (then push-to-hub
+# creates a version from the edit). Reviewers read the actual code in the PR diff,
+# so the impact comment usually adds nothing. To enable it anyway, set PR_TOKEN.
+#
 # Secrets / variables this expects:
 #   secrets.HUB_TOKEN    superadmin token of your Windmill instance / hub
 #   secrets.LICENSE_KEY  (official hub only) enterprise license key
-#   secrets.PR_TOKEN     a PAT/GitHub App token used to OPEN the PR. Needed so the
-#                        PR triggers test-push-to-hub.yaml — PRs opened with the
-#                        default GITHUB_TOKEN do not trigger other workflows.
 #   vars.HUB_URL         your hub URL (e.g. https://hub.example.com)
+#   secrets.PR_TOKEN     OPTIONAL. PAT/GitHub App token to open the PR. Only needed
+#                        to enable the test-push-to-hub.yaml dry-run preview: a PR
+#                        opened with the default GITHUB_TOKEN can't trigger other
+#                        workflows, so the preview won't run without it. Unset =>
+#                        the PR opens with GITHUB_TOKEN (no preview), which needs
+#                        "Allow GitHub Actions to create and approve pull requests"
+#                        enabled in the repo/org Actions settings.
 name: Open review PR for a hub-created script
 
 on:
@@ -54,7 +65,7 @@ jobs:
       - name: Open / update the review PR
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PR_TOKEN }}
+          token: ${{ secrets.PR_TOKEN || secrets.GITHUB_TOKEN }}
           branch: hub-submission/script-${{ github.event.client_payload.ask_id }}
           labels: hub-submission
           commit-message: "feat(${{ github.event.client_payload.app }}): ${{ github.event.client_payload.summary }}"

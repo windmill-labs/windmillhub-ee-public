@@ -1,9 +1,14 @@
-# EXAMPLE — dry-run + impact comment on PRs touching hub/**.
+# EXAMPLE — OPTIONAL dry-run + impact comment on PRs touching hub/**.
 #
-# Runs on every PR (including the hub-submission PRs opened by
-# open-pr-on-script-created.yaml / open-pending-prs.yaml) so a reviewer sees
-# exactly what merging will do on the hub before approving. Pure dry-run — no
-# hub changes.
+# Off the critical path: the create -> PR -> merge -> approve loop works without
+# it (see open-pr-on-script-created.yaml's "why there's no preview" note). Add
+# this only if you want reviewers to see a summary of what merging will do before
+# approving. Pure dry-run — no hub changes.
+#
+# Note: it fires for the bot-opened hub-submission PRs ONLY if those PRs are
+# opened with a PAT (set secrets.PR_TOKEN) — a PR opened with the default
+# GITHUB_TOKEN can't trigger other workflows. It always runs for human-opened PRs
+# touching hub/**.
 name: Test push to hub (dry run)
 
 on:
