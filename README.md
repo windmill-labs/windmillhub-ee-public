@@ -27,9 +27,59 @@ As described above, logging in on the hub will redirect you to the Windmill inst
 Superadmins of the Windmill instance can approve resource types, scripts, flows, and apps on the Hub.
 **Only approved content will be available to users on the Windmill instance.**
 
-## Import scripts from the official Windmill hub
+## Import selected integrations from the official Windmill hub
 
-You can use the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli) to pull scripts locally from the official Windmill hub and push them to your private hub.
+The `import` service runs the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli)
+next to the hub and copies the integrations you pick from the public hub into yours. It keeps
+the public ids, so a flow that uses `hub/<version_id>/...` runs the same on both hubs.
+
+1. In `.env`, set `IMPORT_APPS` to the integrations you want (e.g. `gmail,slack,github`) and
+   `IMPORT_TOKEN` to a token of a superadmin of your Windmill instance.
+2. Run `docker compose run --rm import`.
+
+The selection is saved on the hub, so later runs refresh the same integrations. Changing
+`IMPORT_APPS` adds integrations; add `--prune` to the command to hide the official scripts of
+the ones you removed (their versions stay resolvable for pinned flows). Scripts that are
+unapproved on your hub are reported as `disabled` and left alone, so to bring a pruned
+integration back, add it to `IMPORT_APPS` again and run `import --accept <ask_id,...>` with
+the ids the report lists as disabled.
+
+Run the same command on a schedule (cron, CI) to take upstream updates. It never asks a
+question, and each script is handled on its own:
+
+- **Untouched** on your hub: takes the new upstream version.
+- **Edited** on your hub, unchanged upstream: your edit is kept.
+- **Edited on both sides** (`diverged`): nothing is overwritten. The run prints both diffs,
+  writes them to `import-report.json`, and exits with code 2 until you decide, with
+  `import --accept <ask_id>` (take upstream) or `import --keep <ask_id>` (keep your edit until
+  upstream changes again).
+- **Removed upstream**: kept on your hub and listed in the report.
+
+Every version stays on the hub, so a flow pinned to an older version id keeps working after
+an update. To change an official script heavily, prefer copying it into a new script of your
+own: it gets its own id and never shows up as diverged.
+
+### Resource types
+
+The Windmill image already carries the public resource types and refreshes them with each
+upgrade, so the import leaves them alone. Your private hub only needs the resource types you
+create, plus any official one you want to change: a type your hub lists takes priority over
+the image's copy. An integration newer than your Windmill image has its scripts imported, but
+its resource type only appears once you upgrade Windmill.
+
+### Without internet access
+
+Write a bundle on a machine that can reach the public hub, carry the file over, and import it:
+
+```sh
+docker run --rm -v "$PWD:/work" -e LICENSE_KEY ghcr.io/windmill-labs/hub-cli \
+  import --apps gmail,slack --out bundle.json
+docker compose run --rm -v "$PWD:/work" import import --bundle bundle.json
+```
+
+Updates work the same way with a newer bundle. The hub's license key renews daily against
+`stats.windmill.dev`; with no route to it, the hub runs until the key's expiry, so ask for a
+long-lived key and update `LICENSE_KEY` before it runs out.
 
 ## Hub ↔ GitHub sync (approval workflows)
 
