@@ -29,6 +29,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  # Imports the integrations listed in IMPORT_APPS from the public Windmill hub and keeps
+  # them up to date (see "Import selected integrations" in the README). Not started by
+  # `up`: run it once, then on a schedule, with `docker compose run --rm import`.
+  import:
+    image: ghcr.io/windmill-labs/hub-cli:latest
+    profiles: [import]
+    command: import
+    environment:
+      - HUB_URL=http://hub:3000
+      - TOKEN=${IMPORT_TOKEN}
+      - LICENSE_KEY=${LICENSE_KEY}
+      - IMPORT_APPS=${IMPORT_APPS:-}
+    depends_on:
+      - hub
   caddy:
     image: caddy:2.5.2-alpine
     restart: unless-stopped
