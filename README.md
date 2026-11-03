@@ -72,26 +72,26 @@ image has its scripts imported, but its resource type only appears once you upgr
 
 ### Without internet access
 
-The `ghcr.io/windmill-labs/hub-bundle` image carries a weekly snapshot of every public script,
-and its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what
-gets imported. As on any private hub, set `SYNC_CACHED_RT=true` on the Windmill server for the public resource types (see
-[Resource types](#resource-types)).
+The `bundle` tag of the hub cli image carries a weekly snapshot of every public script, and
+its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what gets
+imported. As on any private hub, set `SYNC_CACHED_RT=true` on the Windmill server for the
+public resource types (see [Resource types](#resource-types)).
 
 On a machine with internet access, pull the image and save it to a file:
 
 ```sh
-docker pull ghcr.io/windmill-labs/hub-bundle:latest
-docker save ghcr.io/windmill-labs/hub-bundle:latest -o hub-bundle.tar
+docker pull ghcr.io/windmill-labs/hub-cli:bundle
+docker save ghcr.io/windmill-labs/hub-cli:bundle -o hub-bundle.tar
 ```
 
 Carry `hub-bundle.tar` over, then on the hub's machine:
 
 ```sh
 docker load -i hub-bundle.tar
-IMPORT_IMAGE=ghcr.io/windmill-labs/hub-bundle:latest docker compose run --rm import
+IMPORT_IMAGE=ghcr.io/windmill-labs/hub-cli:bundle docker compose run --rm import
 ```
 
-Or set `IMPORT_IMAGE` in `.env`. Dated tags (`:<yyyy-mm-dd>`) pin a given snapshot.
+Or set `IMPORT_IMAGE` in `.env`. Dated tags (`:bundle-<yyyy-mm-dd>`) pin a given snapshot.
 
 To carry only some integrations instead, write a bundle file with the public image on the
 connected machine and import that file:
