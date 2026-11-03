@@ -33,7 +33,7 @@ services:
   # them up to date (see "Import selected integrations" in the README). Not started by
   # `up`: run it once, then on a schedule, with `docker compose run --rm import`.
   import:
-    image: ghcr.io/windmill-labs/hub-cli:latest
+    image: ${IMPORT_IMAGE:-ghcr.io/windmill-labs/hub-cli:latest}
     profiles: [import]
     command: import
     environment:

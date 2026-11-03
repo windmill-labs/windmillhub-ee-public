@@ -69,7 +69,29 @@ its resource type only appears once you upgrade Windmill.
 
 ### Without internet access
 
-Write a bundle on a machine that can reach the public hub, carry the file over, and import it:
+The `ghcr.io/windmill-labs/hub-bundle` image carries a weekly snapshot of every public script,
+and its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what
+gets imported. The image is private: ask Windmill for a registry token.
+
+On a machine with internet access, pull the image and save it to a file:
+
+```sh
+docker login ghcr.io   # with the token you were given
+docker pull ghcr.io/windmill-labs/hub-bundle:latest
+docker save ghcr.io/windmill-labs/hub-bundle:latest -o hub-bundle.tar
+```
+
+Carry `hub-bundle.tar` over, then on the hub's machine:
+
+```sh
+docker load -i hub-bundle.tar
+IMPORT_IMAGE=ghcr.io/windmill-labs/hub-bundle:latest docker compose run --rm import
+```
+
+Or set `IMPORT_IMAGE` in `.env`. Dated tags (`:<yyyy-mm-dd>`) pin a given snapshot.
+
+To carry only some integrations instead, write a bundle file with the public image on the
+connected machine and import that file:
 
 ```sh
 docker run --rm -v "$PWD:/work" -e LICENSE_KEY ghcr.io/windmill-labs/hub-cli \
@@ -77,9 +99,9 @@ docker run --rm -v "$PWD:/work" -e LICENSE_KEY ghcr.io/windmill-labs/hub-cli \
 docker compose run --rm -v "$PWD:/work" import import --bundle bundle.json
 ```
 
-Updates work the same way with a newer bundle. The hub's license key renews daily against
-`stats.windmill.dev`; with no route to it, the hub runs until the key's expiry, so ask for a
-long-lived key and update `LICENSE_KEY` before it runs out.
+Updates work the same way with a newer image or bundle. The hub's license key renews daily
+against `stats.windmill.dev`; with no route to it, the hub runs until the key's expiry, so ask
+for a long-lived key and update `LICENSE_KEY` before it runs out.
 
 ## Hub ↔ GitHub sync (approval workflows)
 
