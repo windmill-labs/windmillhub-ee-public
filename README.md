@@ -61,17 +61,22 @@ own: it gets its own id and never shows up as diverged.
 
 ### Resource types
 
-The Windmill image already carries the public resource types and refreshes them with each
-upgrade, so the import leaves them alone. Your private hub only needs the resource types you
-create, plus any official one you want to change: a type your hub lists takes priority over
-the image's copy. An integration newer than your Windmill image has its scripts imported, but
-its resource type only appears once you upgrade Windmill.
+The Windmill image carries the public resource types, so the import leaves them alone. Set
+`SYNC_CACHED_RT=true` on the Windmill server so it applies them on every start: an instance
+pointed at this hub syncs resource types from it, not from the public hub, so without the
+variable it stops taking new public types after its first sync (with or without internet
+access). Your private hub
+only needs the resource types you create, plus any official one you want to change: a type
+your hub lists takes priority over the image's copy. An integration newer than your Windmill
+image has its scripts imported, but its resource type only appears once you upgrade Windmill.
 
 ### Without internet access
 
 The `ghcr.io/windmill-labs/hub-bundle` image carries a weekly snapshot of every public script,
 and its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what
-gets imported. The image is private: ask Windmill for a registry token.
+gets imported. The image is private: ask Windmill for a registry token. As on any private
+hub, set `SYNC_CACHED_RT=true` on the Windmill server for the public resource types (see
+[Resource types](#resource-types)).
 
 On a machine with internet access, pull the image and save it to a file:
 
