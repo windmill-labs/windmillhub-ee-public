@@ -74,14 +74,12 @@ image has its scripts imported, but its resource type only appears once you upgr
 
 The `ghcr.io/windmill-labs/hub-bundle` image carries a weekly snapshot of every public script,
 and its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what
-gets imported. The image is private: ask Windmill for a registry token. As on any private
-hub, set `SYNC_CACHED_RT=true` on the Windmill server for the public resource types (see
+gets imported. As on any private hub, set `SYNC_CACHED_RT=true` on the Windmill server for the public resource types (see
 [Resource types](#resource-types)).
 
 On a machine with internet access, pull the image and save it to a file:
 
 ```sh
-docker login ghcr.io   # with the token you were given
 docker pull ghcr.io/windmill-labs/hub-bundle:latest
 docker save ghcr.io/windmill-labs/hub-bundle:latest -o hub-bundle.tar
 ```
