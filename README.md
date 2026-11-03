@@ -37,27 +37,31 @@ the public ids, so a flow that uses `hub/<version_id>/...` runs the same on both
    `IMPORT_TOKEN` to a token of a superadmin of your Windmill instance.
 2. Run `docker compose run --rm import`.
 
-The selection is saved on the hub, so later runs refresh the same integrations. Changing
-`IMPORT_APPS` adds integrations; add `--prune` to the command to hide the official scripts of
-the ones you removed (their versions stay resolvable for pinned flows). Scripts that are
-unapproved on your hub are reported as `disabled` and left alone, so to bring a pruned
-integration back, add it to `IMPORT_APPS` again and run `import --accept <ask_id,...>` with
-the ids the report lists as disabled.
+Each run imports exactly the integrations in `IMPORT_APPS`. An integration you remove from it
+stops getting updates, and its scripts stay on your hub as they are; to also hide them (their
+versions stay resolvable for pinned flows), run
+`docker compose run --rm import import --prune`. Scripts that are unapproved on your hub are
+reported as `disabled` and left alone, so to bring a pruned integration back, add it to
+`IMPORT_APPS` again and run `docker compose run --rm import import --accept <ask_id,...>` with
+the ids the run lists as disabled. Arguments after the service name replace its command, so
+repeat `import` before any option.
 
-Run the same command on a schedule (cron, CI) to take upstream updates. It never asks a
-question, and each script is handled on its own:
+Run `docker compose run --rm -T import` on a schedule (cron, CI) to take upstream updates. It
+never asks a question, and each script is handled on its own:
 
 - **Untouched** on your hub: takes the new upstream version.
 - **Edited** on your hub, unchanged upstream: your edit is kept.
-- **Edited on both sides** (`diverged`): nothing is overwritten. The run prints both diffs,
-  writes them to `import-report.json`, and exits with code 2 until you decide, with
+- **Edited on both sides** (`diverged`): nothing is overwritten. The run prints both diffs
+  (keep its output, e.g. in cron mail or CI logs) and exits with code 2 until you decide, with
   `import --accept <ask_id>` (take upstream) or `import --keep <ask_id>` (keep your edit until
   upstream changes again).
-- **Removed upstream**: kept on your hub and listed in the report.
+- **Removed upstream**: kept on your hub and listed in the run's output.
 
 Every version stays on the hub, so a flow pinned to an older version id keeps working after
 an update. To change an official script heavily, prefer copying it into a new script of your
-own: it gets its own id and never shows up as diverged.
+own: it gets its own id and never shows up as diverged. To manage your own scripts from a
+git repository instead, see the hub cli's `pull` and `push` commands in its
+[README](https://www.npmjs.com/package/@windmill-labs/hub-cli).
 
 ### Resource types
 
@@ -93,16 +97,7 @@ IMPORT_IMAGE=ghcr.io/windmill-labs/hub-cli:bundle docker compose run --rm import
 
 Or set `IMPORT_IMAGE` in `.env`. Dated tags (`:bundle-<yyyy-mm-dd>`) pin a given snapshot.
 
-To carry only some integrations instead, write a bundle file with the public image on the
-connected machine and import that file:
-
-```sh
-docker run --rm -v "$PWD:/work" -e LICENSE_KEY ghcr.io/windmill-labs/hub-cli \
-  import --apps gmail,slack --out bundle.json
-docker compose run --rm -v "$PWD:/work" import import --bundle bundle.json
-```
-
-Updates work the same way with a newer image or bundle. The hub's license key renews daily
+Updates work the same way with a newer image. The hub's license key renews daily
 against `stats.windmill.dev`; with no route to it, the hub runs until the key's expiry, so ask
 for a long-lived key and update `LICENSE_KEY` before it runs out.
 
