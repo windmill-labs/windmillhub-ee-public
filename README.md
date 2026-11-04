@@ -69,10 +69,11 @@ The Windmill image carries the public resource types, so the import leaves them 
 `SYNC_CACHED_RT=true` on the Windmill server so it applies them on every start: an instance
 pointed at this hub syncs resource types from it, not from the public hub, so without the
 variable it stops taking new public types after its first sync (with or without internet
-access). Your private hub
-only needs the resource types you create, plus any official one you want to change: a type
-your hub lists takes priority over the image's copy. An integration newer than your Windmill
-image has its scripts imported, but its resource type only appears once you upgrade Windmill.
+access). Your private hub only needs the resource types you create, plus any official one you
+want to change: a type your hub lists takes priority over the image's copy (Windmill 1.860 or
+later; before, the two copies alternate at each restart). An integration newer than your
+Windmill image has its scripts imported, but its resource type only appears once you upgrade
+Windmill.
 
 ### Without internet access
 
