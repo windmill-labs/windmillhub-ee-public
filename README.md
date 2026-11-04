@@ -41,8 +41,8 @@ Each run imports the integrations in `IMPORT_APPS` and saves them on the hub (le
 run uses the saved list). Removing one stops its updates and leaves its scripts as they are.
 Options replace the service's command, so repeat `import`:
 
-- `docker compose run --rm import import --prune` hides the scripts of removed integrations
-  (pinned versions stay resolvable).
+- `docker compose run --rm import import --prune` hides the official scripts of every
+  integration not in `IMPORT_APPS` (pinned versions stay resolvable).
 - `docker compose run --rm import import --accept <ask_id,...>` brings back scripts the run
   lists as `disabled`, e.g. after re-adding a pruned integration.
 
