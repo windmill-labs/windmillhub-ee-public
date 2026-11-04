@@ -35,10 +35,11 @@ to copy the integrations you pick from the public hub into yours, keeping their 
 
 1. In `.env`, set `IMPORT_APPS` to the integrations you want (e.g. `gmail,slack,github`) and
    `IMPORT_TOKEN` to a token of a superadmin of your Windmill instance.
-2. Run `docker compose run --rm import`.
+2. With the stack up (`docker compose up -d`), run `docker compose run --rm import`.
 
-Each run imports exactly the integrations in `IMPORT_APPS`. Removing one stops its updates and
-leaves its scripts as they are. Options replace the service's command, so repeat `import`:
+Each run imports the integrations in `IMPORT_APPS` and saves them on the hub (left empty, the
+run uses the saved list). Removing one stops its updates and leaves its scripts as they are.
+Options replace the service's command, so repeat `import`:
 
 - `docker compose run --rm import import --prune` hides the scripts of removed integrations
   (pinned versions stay resolvable).
@@ -87,9 +88,9 @@ docker load -i hub-bundle.tar
 IMPORT_IMAGE=ghcr.io/windmill-labs/hub-cli:bundle docker compose run --rm import
 ```
 
-(`IMPORT_IMAGE` can also go in `.env`; `:bundle-<yyyy-mm-dd>` pins a snapshot.) Update with a
-newer image. The hub's license key renews daily against `stats.windmill.dev`; offline, the hub
-runs until the key expires, so ask for a long-lived key.
+Put `IMPORT_IMAGE` in `.env` so scheduled runs use it too; `:bundle-<yyyy-mm-dd>` pins a
+snapshot. Update with a newer image. The hub's license key renews daily against
+`stats.windmill.dev`; offline, the hub runs until the key expires, so ask for a long-lived key.
 
 ## Hub ↔ GitHub sync (approval workflows)
 

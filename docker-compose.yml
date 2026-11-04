@@ -38,8 +38,7 @@ services:
     command: import
     environment:
       - HUB_URL=http://hub:3000
-      - TOKEN=${IMPORT_TOKEN}
-      - LICENSE_KEY=${LICENSE_KEY}
+      - TOKEN=${IMPORT_TOKEN:-}
       - IMPORT_APPS=${IMPORT_APPS:-}
     depends_on:
       - hub
