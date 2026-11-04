@@ -30,57 +30,48 @@ Superadmins of the Windmill instance can approve resource types, scripts, flows,
 ## Import selected integrations from the official Windmill hub
 
 The `import` service runs the [hub cli](https://www.npmjs.com/package/@windmill-labs/hub-cli)
-next to the hub and copies the integrations you pick from the public hub into yours. It keeps
-the public ids, so a flow that uses `hub/<version_id>/...` runs the same on both hubs.
+to copy the integrations you pick from the public hub into yours, keeping their ids, so
+`hub/<version_id>/...` paths work the same on both.
 
 1. In `.env`, set `IMPORT_APPS` to the integrations you want (e.g. `gmail,slack,github`) and
    `IMPORT_TOKEN` to a token of a superadmin of your Windmill instance.
 2. Run `docker compose run --rm import`.
 
-Each run imports exactly the integrations in `IMPORT_APPS`. An integration you remove from it
-stops getting updates, and its scripts stay on your hub as they are; to also hide them (their
-versions stay resolvable for pinned flows), run
-`docker compose run --rm import import --prune`. Scripts that are unapproved on your hub are
-reported as `disabled` and left alone, so to bring a pruned integration back, add it to
-`IMPORT_APPS` again and run `docker compose run --rm import import --accept <ask_id,...>` with
-the ids the run lists as disabled. Arguments after the service name replace its command, so
-repeat `import` before any option.
+Each run imports exactly the integrations in `IMPORT_APPS`. Removing one stops its updates and
+leaves its scripts as they are. Options replace the service's command, so repeat `import`:
 
-Run `docker compose run --rm -T import` on a schedule (cron, CI) to take upstream updates. It
-never asks a question, and each script is handled on its own:
+- `docker compose run --rm import import --prune` hides the scripts of removed integrations
+  (pinned versions stay resolvable).
+- `docker compose run --rm import import --accept <ask_id,...>` brings back scripts the run
+  lists as `disabled`, e.g. after re-adding a pruned integration.
+
+Run `docker compose run --rm -T import` on a schedule (cron, CI) to take upstream updates. Per
+script:
 
 - **Untouched** on your hub: takes the new upstream version.
 - **Edited** on your hub, unchanged upstream: your edit is kept.
 - **Edited on both sides** (`diverged`): nothing is overwritten. The run prints both diffs
-  (keep its output, e.g. in cron mail or CI logs) and exits with code 2 until you decide, with
-  `import --accept <ask_id>` (take upstream) or `import --keep <ask_id>` (keep your edit until
-  upstream changes again).
-- **Removed upstream**: kept on your hub and listed in the run's output.
+  (keep its output) and exits with code 2 until you run `import --accept <ask_id>` (take
+  upstream) or `import --keep <ask_id>` (keep your edit until upstream changes again).
+- **Removed upstream**: kept, and listed in the output.
 
-Every version stays on the hub, so a flow pinned to an older version id keeps working after
-an update. To change an official script heavily, prefer copying it into a new script of your
-own: it gets its own id and never shows up as diverged. To manage your own scripts from a
-git repository instead, see the hub cli's `pull` and `push` commands in its
-[README](https://www.npmjs.com/package/@windmill-labs/hub-cli).
+Old versions stay on the hub, so pinned flows keep working. To change an official script
+heavily, copy it into a new script: it gets its own id and never diverges. To manage your own
+scripts from git, see the hub cli's `pull` and `push`.
 
 ### Resource types
 
-The Windmill image carries the public resource types, so the import leaves them alone. Set
-`SYNC_CACHED_RT=true` on the Windmill server so it applies them on every start: an instance
-pointed at this hub syncs resource types from it, not from the public hub, so without the
-variable it stops taking new public types after its first sync (with or without internet
-access). Your private hub only needs the resource types you create, plus any official one you
-want to change: a type your hub lists takes priority over the image's copy (Windmill 1.860 or
-later; before, the two copies alternate at each restart). An integration newer than your
-Windmill image has its scripts imported, but its resource type only appears once you upgrade
-Windmill.
+The import leaves resource types alone: the Windmill image carries the public ones. Set
+`SYNC_CACHED_RT=true` on the Windmill server (1.860 or later) so it applies them at each start;
+otherwise an instance pointed at this hub stops getting new public types. Your hub then only
+needs the types you create or change, and its copy wins over the image's. A type newer than
+your Windmill image arrives with the next Windmill upgrade.
 
 ### Without internet access
 
 The `bundle` tag of the hub cli image carries a weekly snapshot of every public script, and
 its `import` reads the snapshot instead of the public hub. `IMPORT_APPS` still picks what gets
-imported. As on any private hub, set `SYNC_CACHED_RT=true` on the Windmill server for the
-public resource types (see [Resource types](#resource-types)).
+imported.
 
 On a machine with internet access, pull the image and save it to a file:
 
@@ -96,11 +87,9 @@ docker load -i hub-bundle.tar
 IMPORT_IMAGE=ghcr.io/windmill-labs/hub-cli:bundle docker compose run --rm import
 ```
 
-Or set `IMPORT_IMAGE` in `.env`. Dated tags (`:bundle-<yyyy-mm-dd>`) pin a given snapshot.
-
-Updates work the same way with a newer image. The hub's license key renews daily
-against `stats.windmill.dev`; with no route to it, the hub runs until the key's expiry, so ask
-for a long-lived key and update `LICENSE_KEY` before it runs out.
+(`IMPORT_IMAGE` can also go in `.env`; `:bundle-<yyyy-mm-dd>` pins a snapshot.) Update with a
+newer image. The hub's license key renews daily against `stats.windmill.dev`; offline, the hub
+runs until the key expires, so ask for a long-lived key.
 
 ## Hub ↔ GitHub sync (approval workflows)
 
